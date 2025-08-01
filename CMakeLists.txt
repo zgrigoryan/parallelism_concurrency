@@ -10,6 +10,12 @@ if (UNIX AND NOT APPLE)
   find_package(Threads REQUIRED)
 endif()
 
+option(FAST_CI "Use smaller problem sizes for CI" ON)
+
+if (FAST_CI)
+    add_compile_definitions(FAST_CI)
+endif()
+
 # ------------------------------------------------------------
 # List of example sources: add new files here
 set(EXAMPLES
