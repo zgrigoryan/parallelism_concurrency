@@ -3,6 +3,20 @@
 #include <mutex>
 #include <atomic>
 #include <chrono>
+
+#ifdef FAST_CI
+constexpr int kHoldMs = 20;
+#else
+constexpr int kHoldMs = 200;
+#endif
+
+#ifdef _WIN32   // ───────────────────────────────────────── Windows stub
+int main() {
+    std::cout << "priority_inversion demo is POSIX-only – skipped on Windows.\n";
+    return 0;
+}
+#else           // ───────────────────────────────────────── POSIX version
+
 #include <unistd.h>
 #ifdef __linux__
 #include <pthread.h>
@@ -19,17 +33,17 @@ auto now_ms() {
 
 void set_prio(int prio) {
 #ifdef __linux__
-    sched_param sp{.sched_priority = prio};
+    sched_param sp{ .sched_priority = prio };
     pthread_setschedparam(pthread_self(), SCHED_FIFO, &sp);
 #else
-    (void)prio; // Do nothing on non-Linux
+    (void)prio;
 #endif
 }
 
 void low_thread() {
     set_prio(10);
     std::scoped_lock lg(shared_mtx);
-    std::this_thread::sleep_for(std::chrono::milliseconds(200)); // Simulate holding the resource
+    std::this_thread::sleep_for(std::chrono::milliseconds(200)); // hold resource
 }
 
 void high_thread() {
@@ -42,9 +56,7 @@ void high_thread() {
 
 void medium_thread() {
     set_prio(50);
-    while (!done) {
-        std::this_thread::yield(); // avoid 100% CPU spin
-    }
+    while (!done) std::this_thread::yield();
 }
 
 int main() {
@@ -54,5 +66,7 @@ int main() {
     std::thread H(high_thread);
     std::thread M(medium_thread);
     L.join(); H.join(); M.join();
-    std::cout << "Complete. Try rebuilding with -DPRIO_INHERIT and using pthread_mutexattr_setprotocol for real PI.\n";
+    std::cout << "Complete.  Re-build with -DPRIO_INHERIT and a PI mutex for the real fix.\n";
 }
+
+#endif  // _WIN32
