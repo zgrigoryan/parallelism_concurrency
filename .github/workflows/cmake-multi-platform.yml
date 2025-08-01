@@ -36,40 +36,30 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
-
+    
     - name: Configure CMake
-      shell: bash                  
+      shell: bash         
       run: |
         cmake -S . -B build \
           -DCMAKE_C_COMPILER=${{ matrix.c_compiler }} \
           -DCMAKE_CXX_COMPILER=${{ matrix.cpp_compiler }} \
-          -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
-
-
+          -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
+          -DFAST_CI=ON     
+  
     - name: Build
       run: cmake --build build --config ${{ matrix.build_type }} --parallel
-
-    # --- Simple functional smoke tests --------------------------------------
-    - name: Run examples and print timings
+      
+    - name: Run examples
       shell: bash
       run: |
         set -e
         cd build
-        # List of executables to test (add more as you wish)
-        progs=(
-          multithread_sum
-          thread_pool_sum
-          async_sum
-          priority_inversion
-          atomic_vs_mutex
-          race_condition
-        )
+        progs=(multithread_sum thread_pool_sum async_sum atomic_vs_mutex race_condition)
+        # priority_inversion only on POSIX:
+        [[ "${{ matrix.os }}" == "ubuntu-latest" ]] && progs+=(priority_inversion)
         for p in "${progs[@]}"; do
-          echo "::group::Running $p"
-          if [[ -x "$p" ]]; then
-            ./"$p" || { echo "$p failed"; exit 1; }
-          else
-            echo "⚠️  $p not built on this platform"
-          fi
+          echo "::group::$p"
+          ./"$p"
           echo "::endgroup::"
         done
+
