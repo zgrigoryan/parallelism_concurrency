@@ -54,12 +54,21 @@ jobs:
       run: |
         set -e
         cd build
+    
+        # Choose sub-directory for Windows multi-config generators
+        if [[ "${{ runner.os }}" == "Windows" ]]; then
+          BIN_DIR="Release"          # executables live here
+          EXT=".exe"
+        else
+          BIN_DIR="."
+          EXT=""
+        fi
+    
         progs=(multithread_sum thread_pool_sum async_sum atomic_vs_mutex race_condition)
-        # priority_inversion only on POSIX:
-        [[ "${{ matrix.os }}" == "ubuntu-latest" ]] && progs+=(priority_inversion)
+        [[ "${{ runner.os }}" == "Linux" ]] && progs+=(priority_inversion)
+    
         for p in "${progs[@]}"; do
           echo "::group::$p"
-          ./"$p"
+          "./${BIN_DIR}/${p}${EXT}"
           echo "::endgroup::"
         done
-
